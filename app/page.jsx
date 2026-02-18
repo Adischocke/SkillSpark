@@ -1,210 +1,102 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { SKILLS } from "../lib/skills";
 
-function todayKey() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+export default function Page() {
+  const [skillIndex, setSkillIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
 
-function getUnlockedDays() {
-  if (typeof window === "undefined") return 1;
-
-  const start = localStorage.getItem("skillspark_start");
-
-  if (!start) {
-    localStorage.setItem("skillspark_start", todayKey());
-    localStorage.setItem("skillspark_unlocked", "1");
-    localStorage.setItem("skillspark_last", todayKey());
-    return 1;
-  }
-
-  const unlocked = Number(localStorage.getItem("skillspark_unlocked") || "1");
-  const last = localStorage.getItem("skillspark_last") || start;
-
-  const lastDate = new Date(last);
-  const now = new Date(todayKey());
-  const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
-
-  if (diffDays > 0) {
-    const newUnlocked = Math.min(unlocked + diffDays, SKILLS.length);
-    localStorage.setItem("skillspark_unlocked", String(newUnlocked));
-    localStorage.setItem("skillspark_last", todayKey());
-    return newUnlocked;
-  }
-
-  return Math.min(unlocked, SKILLS.length);
-}
-
-export default function Home() {
-  const [unlocked, setUnlocked] = useState(1);
-  const [selectedDay, setSelectedDay] = useState(1);
-  const [picked, setPicked] = useState(null);
-
-  useEffect(() => {
-    const u = getUnlockedDays();
-    setUnlocked(u);
-    setSelectedDay(Math.min(u, SKILLS.length));
-  }, []);
-
-  const skill = useMemo(
-    () => SKILLS.find((s) => s.day === selectedDay) || SKILLS[0],
-    [selectedDay]
-  );
-
-  useEffect(() => {
-    setPicked(null);
-  }, [selectedDay]);
+  const skill = SKILLS[skillIndex];
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>SkillSpark</h1>
-      <p style={styles.subtitle}>
-        Daily Skill: Video → Real Example → Practice Game
-      </p>
+      <p style={styles.subtitle}>5-Minuten-Skills fürs echte Leben</p>
 
-      <div style={styles.counter}>
-        Freigeschaltet: {unlocked} / {SKILLS.length}
-      </div>
-
-      {/* Skill Auswahl */}
-      <div style={styles.skillList}>
-        {SKILLS.map((s) => {
-          const locked = s.day > unlocked;
-          return (
-            <button
-              key={s.day}
-              style={{
-                ...styles.skillButton,
-                opacity: locked ? 0.4 : 1,
-                cursor: locked ? "not-allowed" : "pointer",
-              }}
-              disabled={locked}
-              onClick={() => !locked && setSelectedDay(s.day)}
-            >
-              Tag {s.day}: {s.title}
-            </button>
-          );
-        })}
+      {/* Auswahl */}
+      <div style={styles.list}>
+        {SKILLS.map((s, i) => (
+          <button key={i} style={styles.skillBtn} onClick={() => setSkillIndex(i)}>
+            Tag {s.day}: {s.title}
+          </button>
+        ))}
       </div>
 
       <hr style={styles.hr} />
 
       {/* Video */}
-      <h2>🎬 Erklärung</h2>
-      <div style={styles.videoBox}>
-        <iframe
-          src={skill.videoSrc}
-          title="Skill Video"
-          allowFullScreen
-          style={styles.iframe}
-        />
-      </div>
+      <video src={skill.video} controls style={styles.video} />
 
       <hr style={styles.hr} />
 
       {/* Beispiel */}
-      <h2>📌 Beispiel im echten Leben</h2>
-      <p>{skill.realLifeExample}</p>
+      <h2>Beispiel aus dem Alltag</h2>
+      <p>{skill.example}</p>
 
       <hr style={styles.hr} />
 
-      {/* Spiel */}
-      <h2>🎮 Mini-Übung</h2>
-      <p>{skill.game.prompt}</p>
+      {/* Quiz */}
+      <h2>Mini-Übung</h2>
 
-      {skill.game.options.map((o, i) => (
-        <button
-          key={i}
-          style={styles.option}
-          onClick={() => picked === null && setPicked(i)}
-        >
-          {o.text}
-        </button>
-      ))}
+      {skill.questions.map((q, qi) => (
+        <div key={qi} style={styles.question}>
+          <p>{q.q}</p>
 
-      {picked !== null && (
-        <div
-          style={{
-            ...styles.result,
-            backgroundColor: skill.game.options[picked].correct
-              ? "#14532d"
-              : "#7f1d1d",
-          }}
-        >
-          {skill.game.options[picked].correct ? "Richtig ✅" : "Nicht ideal ❌"}
-          <p>{skill.game.options[picked].feedback}</p>
+          {q.options.map((opt, oi) => (
+            <button
+              key={oi}
+              style={styles.opt}
+              onClick={() => setAnswers({ ...answers, [qi]: opt.c })}
+            >
+              {opt.t}
+            </button>
+          ))}
+
+          {answers[qi] !== undefined && (
+            <p style={{ color: answers[qi] ? "lightgreen" : "tomato" }}>
+              {answers[qi] ? "Richtig 👍" : "Nicht ganz – probier’s nochmal."}
+            </p>
+          )}
         </div>
-      )}
-
-      <div style={styles.nav}>
-        <button style={styles.navBtn} onClick={() => setPicked(null)}>
-          Neu versuchen
-        </button>
-
-        <button
-          style={styles.navBtn}
-          onClick={() =>
-            setSelectedDay((d) => Math.min(d + 1, unlocked))
-          }
-        >
-          Nächster Tag →
-        </button>
-      </div>
+      ))}
     </div>
   );
 }
 
 const styles = {
   page: {
-    fontFamily: "system-ui",
     background: "#020617",
     color: "white",
     minHeight: "100vh",
     padding: 20,
     maxWidth: 700,
     margin: "0 auto",
+    fontFamily: "system-ui"
   },
-  title: { fontSize: 32, marginBottom: 4 },
-  subtitle: { opacity: 0.7, marginBottom: 10 },
-  counter: { marginBottom: 20, fontWeight: "bold" },
-  skillList: { display: "flex", flexWrap: "wrap", gap: 8 },
-  skillButton: {
-    padding: "8px 12px",
+  title: { fontSize: 32 },
+  subtitle: { opacity: 0.7 },
+  list: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 20 },
+  skillBtn: {
     background: "#1e293b",
     border: "none",
+    padding: 10,
     borderRadius: 8,
     color: "white",
+    cursor: "pointer"
   },
-  videoBox: { width: "100%", aspectRatio: "16/9", marginBottom: 10 },
-  iframe: { width: "100%", height: "100%", border: "none" },
-  option: {
+  video: { width: "100%", marginTop: 20, borderRadius: 12 },
+  hr: { margin: "20px 0", opacity: 0.2 },
+  question: { marginBottom: 20 },
+  opt: {
     display: "block",
-    width: "100%",
     marginTop: 8,
     padding: 10,
     background: "#1e293b",
     border: "none",
     borderRadius: 8,
     color: "white",
-    textAlign: "left",
-  },
-  result: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 10,
-  },
-  nav: { marginTop: 16, display: "flex", gap: 10 },
-  navBtn: {
-    padding: "10px 14px",
-    background: "#2563eb",
-    border: "none",
-    borderRadius: 8,
-    color: "white",
-  },
-  hr: { margin: "20px 0", opacity: 0.2 },
+    cursor: "pointer"
+  }
 };
+                               
